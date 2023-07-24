@@ -35,7 +35,6 @@
 #include "atomicvar.h"
 #include "script.h"
 #include <math.h>
-#include <stdio.h>
 
 /* ----------------------------------------------------------------------------
  * Data structures
@@ -541,7 +540,7 @@ int performEvictions(void) {
      * as if it wasn't triggered. it's a fake EVICT_OK. */
     if (!isSafeToPerformEvictions()) return EVICT_OK;
 
-    printf( "hello world\n" );
+    serverLog(LL_WARNING, "performEvictions invoked!!\n");
 
     int keys_freed = 0;
     size_t mem_reported, mem_tofree;
