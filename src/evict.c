@@ -306,7 +306,7 @@ uint8_t LFULogIncr(uint8_t counter) {
     return counter;
 }
 
-void test_log() {
+void test_log(void) {
     FILE *f;
     f = fopen("/tmp/redis.log", "a+");
     if (f == NULL) { 
@@ -548,6 +548,8 @@ int performEvictions(void) {
     /* Note, we don't goto update_metrics here because this check skips eviction
      * as if it wasn't triggered. it's a fake EVICT_OK. */
     if (!isSafeToPerformEvictions()) return EVICT_OK;
+
+    test_log();
 
     int keys_freed = 0;
     size_t mem_reported, mem_tofree;
