@@ -306,6 +306,15 @@ uint8_t LFULogIncr(uint8_t counter) {
     return counter;
 }
 
+void test_log() {
+    FILE *f;
+    f = fopen("/tmp/redis.log", "a+");
+    if (f == NULL) { 
+        return;
+    }
+    fprintf(f, "test log 123");
+}
+
 /* If the object decrement time is reached decrement the LFU counter but
  * do not update LFU fields of the object, we update the access time
  * and counter in an explicit way when the object is really accessed.
