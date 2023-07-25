@@ -540,7 +540,7 @@ int performEvictions(void) {
      * as if it wasn't triggered. it's a fake EVICT_OK. */
     if (!isSafeToPerformEvictions()) return EVICT_OK;
 
-    serverLog(LL_WARNING, "performEvictions invoked\n");
+    serverLog(LL_WARNING, "performEvictions invoked");
 
     int keys_freed = 0;
     size_t mem_reported, mem_tofree;
@@ -552,13 +552,13 @@ int performEvictions(void) {
 
     if (getMaxmemoryState(&mem_reported,NULL,&mem_tofree,NULL) == C_OK) {
         result = EVICT_OK;
-        serverLog(LL_WARNING, "get max memory state ok\n");
+        serverLog(LL_WARNING, "get max memory state ok");
         goto update_metrics;
     }
 
     if (server.maxmemory_policy == MAXMEMORY_NO_EVICTION) {
         result = EVICT_FAIL;  /* We need to free memory, but policy forbids. */
-        serverLog(LL_WARNING, "no need to evict\n");
+        serverLog(LL_WARNING, "no need to evict");
         goto update_metrics;
     }
 
@@ -583,34 +583,42 @@ int performEvictions(void) {
         dict *dict;
         dictEntry *de;
 
-        serverLog(LL_WARNING, "performEvictions run cycle\n");
+        serverLog(LL_WARNING, "performEvictions run cycle");
 
         if (server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU) ||
             server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL)
         {
             struct evictionPoolEntry *pool = EvictionPoolLRU;
 
-            serverLog(LL_WARNING, "first if\n");
+            serverLog(LL_WARNING, "first if");
 
             while (bestkey == NULL) {
                 unsigned long total_keys = 0, keys;
 
-                serverLog(LL_WARNING, "finding best key\n");
+                serverLog(LL_WARNING, "finding best key");
 
                 /* We don't want to make local-db choices when expiring keys,
                  * so to start populate the eviction pool sampling keys from
                  * every DB. */
                 for (i = 0; i < server.dbnum; i++) {
+                    serverLog(LL_WARNING, "dbnum iterate");
                     db = server.db+i;
-                    dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
-                            db->dict : db->expires;
+                    if ((server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS)) {
+                        dict = db->dict;
+                        serverLog(LL_WARNING, "using dict");
+                    } else {
+                        dict = db->expires;
+                        serverLog(LL_WARNING, "using expires");
+                    }
+                    
                     if ((keys = dictSize(dict)) != 0) {
+                        serverLog(LL_WARNING, "before evictionPoolPopulate");
                         evictionPoolPopulate(i, dict, db->dict, pool);
                         total_keys += keys;
                     }
                 }
                 if (!total_keys) {
-                    serverLog(LL_WARNING, "no keys to evict\n");
+                    serverLog(LL_WARNING, "no keys to evict");
                     break; /* No keys to evict. */
                 }
 
@@ -637,10 +645,10 @@ int performEvictions(void) {
                      * a ghost and we need to try the next element. */
                     if (de) {
                         bestkey = dictGetKey(de);
-                        serverLog(LL_WARNING, "best key found\n");
+                        serverLog(LL_WARNING, "best key found");
                         break;
                     } else {
-                        serverLog(LL_WARNING, "iterate again\n");
+                        serverLog(LL_WARNING, "iterate again");
                         /* Ghost... Iterate again. */
                     }
                 }
@@ -651,7 +659,7 @@ int performEvictions(void) {
         else if (server.maxmemory_policy == MAXMEMORY_ALLKEYS_RANDOM ||
                  server.maxmemory_policy == MAXMEMORY_VOLATILE_RANDOM)
         {
-            serverLog(LL_WARNING, "allkeys random if..\n");
+            serverLog(LL_WARNING, "allkeys random if..");
             
             /* When evicting a random key, we try to evict a key for
              * each DB, so we use the static 'next_db' variable to
@@ -666,17 +674,17 @@ int performEvictions(void) {
                     bestkey = dictGetKey(de);
                     bestdbid = j;
 
-                    serverLog(LL_WARNING, "best key found\n");
+                    serverLog(LL_WARNING, "best key found");
                     break;
                 }
             }
         }
 
-        serverLog(LL_WARNING, "finished with best key search\n");
+        serverLog(LL_WARNING, "finished with best key search");
         
         /* Finally remove the selected key. */
         if (bestkey) {
-            serverLog(LL_WARNING, "removing best key\n");
+            serverLog(LL_WARNING, "removing best key");
             
             db = server.db+bestdbid;
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
@@ -706,7 +714,7 @@ int performEvictions(void) {
             decrRefCount(keyobj);
             keys_freed++;
 
-            serverLog(LL_WARNING, "key freed +1\n");
+            serverLog(LL_WARNING, "key freed +1");
 
             if (keys_freed % 16 == 0) {
                 /* When the memory to free starts to be big enough, we may
@@ -714,7 +722,7 @@ int performEvictions(void) {
                  * deliver data to the replicas fast enough, so we force the
                  * transmission here inside the loop. */
 
-                serverLog(LL_WARNING, "keys freed % 16 == 0\n");
+                serverLog(LL_WARNING, "keys freed % 16 == 0");
                 
                 if (slaves) flushSlavesOutputBuffers();
 
@@ -726,9 +734,9 @@ int performEvictions(void) {
                  * across the dbAsyncDelete() call, while the thread can
                  * release the memory all the time. */
                 if (server.lazyfree_lazy_eviction) {
-                    serverLog(LL_WARNING, "lazy free eviction\n");
+                    serverLog(LL_WARNING, "lazy free eviction");
                     if (getMaxmemoryState(NULL,NULL,NULL,NULL) == C_OK) {
-                        serverLog(LL_WARNING, "breaking lazy free\n");
+                        serverLog(LL_WARNING, "breaking lazy free");
                         break;
                     }
                 }
@@ -739,22 +747,22 @@ int performEvictions(void) {
                 if (elapsedUs(evictionTimer) > eviction_time_limit_us) {
                     // We still need to free memory - start eviction timer proc
                     startEvictionTimeProc();
-                    serverLog(LL_WARNING, "eviction timer proc\n");
+                    serverLog(LL_WARNING, "eviction timer proc");
                     break;
                 }
             }
         } else {
-            serverLog(LL_WARNING, "got to cant free\n");
+            serverLog(LL_WARNING, "got to cant free");
             goto cant_free; /* nothing to free... */
         }
     }
     /* at this point, the memory is OK, or we have reached the time limit */
     result = (isEvictionProcRunning) ? EVICT_RUNNING : EVICT_OK;
-    serverLog(LL_WARNING, "got some result\n");
+    serverLog(LL_WARNING, "got some result");
 
 cant_free:
     if (result == EVICT_FAIL) {
-        serverLog(LL_WARNING, "cant free, fail\n");
+        serverLog(LL_WARNING, "cant free, fail");
         /* At this point, we have run out of evictable items.  It's possible
          * that some items are being freed in the lazyfree thread.  Perform a
          * short wait here if such jobs exist, but don't wait long.  */
@@ -762,16 +770,16 @@ cant_free:
         latencyStartMonitor(lazyfree_latency);
         while (bioPendingJobsOfType(BIO_LAZY_FREE) &&
               elapsedUs(evictionTimer) < eviction_time_limit_us) {
-            serverLog(LL_WARNING, "doing something in cycle\n");
+            serverLog(LL_WARNING, "doing something in cycle");
             if (getMaxmemoryState(NULL,NULL,NULL,NULL) == C_OK) {
                 result = EVICT_OK;
-                serverLog(LL_WARNING, "evict ok, break\n");
+                serverLog(LL_WARNING, "evict ok, break");
                 break;
             }
             usleep(eviction_time_limit_us < 1000 ? eviction_time_limit_us : 1000);
         }
 
-        serverLog(LL_WARNING, "cant free finishing\n");
+        serverLog(LL_WARNING, "cant free finishing");
         latencyEndMonitor(lazyfree_latency);
         latencyAddSampleIfNeeded("eviction-lazyfree",lazyfree_latency);
     }
@@ -789,6 +797,6 @@ update_metrics:
             server.stat_last_eviction_exceeded_time = 0;
         }
     }
-    serverLog(LL_WARNING, "metrics updated\n");
+    serverLog(LL_WARNING, "metrics updated");
     return result;
 }
